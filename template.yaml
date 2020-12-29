@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  paciente-app
+
+  Sample SAM Template for paciente-app
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 20
+    Runtime: java11
+    MemorySize: 512
+
+Resources:
+  CreateProductSNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: CreateProductTopic
+
+  ProductPostFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ProductFunction
+      Handler: br.com.adissongomes.product.ProductPostFunction::handleRequest
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /
+            Method: post
+      Policies:
+        Statement:
+          Effect: Allow
+          Action:
+            - sns:Publish
+          Resource:
+            !Sub
+            - arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:${topicName}
+            - topicName: !GetAtt CreateProductSNS.TopicName
+
+  ProductPersistFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ProductFunction
+      Handler: br.com.adissongomes.product.ProductPersistFunction::handleRequest
+      Events:
+        SNSEvent:
+          Type: SNS
+          Properties:
+            Topic: !Ref CreateProductSNS
+      Policies:
+        Statement:
+          Effect: Allow
+          Action:
+            - sns:Publish
+          Resource:
+            Fn::Sub:
+              - arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:${topicName}
+              - topicName: !GetAtt CreateProductSNS.TopicName
+
+
